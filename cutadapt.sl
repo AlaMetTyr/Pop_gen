@@ -1,6 +1,6 @@
 #!/bin/bash -e
 #SBATCH --job-name=cutadapt_popgen # job name (shows up in the queue)
-#SBATCH --time=00:01:00      # Walltime (HH:MM:SS)
+#SBATCH --time=08:00:00      # Walltime (HH:MM:SS)
 #SBATCH --mem=512MB          # Memory in MB
 #SBATCH --account=ga03488
 
