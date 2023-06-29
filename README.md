@@ -5,4 +5,4 @@ This repo is a step by step data analysis from raw fastq files for population ge
 ## Adapter trimming from cutadapt
 `cutadapt -a ADAPTER1 -g ADAPTER1 -a ADAPTER2 -g ADAPTER2 -o output.fastq input.fastq`  
 Specifying 2x forward (5') adapters with the -g flag, and reverse (3') adapters with the -a flag.  
-This is uploaded in `cutadapt.sh`
+This is uploaded in `cutadapt.sl`
