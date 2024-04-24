@@ -20,6 +20,7 @@ input_folder="/nesi/nobackup/ga03488/Amy/FAW/assemblies/test_data/alignments_sam
 output_folder="/nesi/nobackup/ga03488/Amy/FAW/assemblies/test_data/gvcf_samples/"
 
 # Create the output folder if it doesn't exist
+echo "Creating output folder at ${output_folder}"
 mkdir -p "${output_folder}"
 
 # Loop through all SAM files in the input folder
@@ -33,20 +34,25 @@ for sam_file in "${input_folder}"*.sam; do
 
   # Construct the sample name with lane info
   sample_with_lane="${sample_name}_${lane_info}"
-  
+    echo "Sample with lane info: ${sample_with_lane}"
+    
   # Convert SAM to BAM to make file more manageable to handle
   bam_file="${output_folder}${filename}.bam"
+  echo "Converting to BAM: ${bam_file}"
   samtools view -Sb "${sam_file}" > "${bam_file}"
 
   # Sort the BAM file
   sorted_bam_file="${output_folder}${filename}_sorted.bam"
+  echo "Sorting BAM to: ${sorted_bam_file}"
   samtools sort -o "${sorted_bam_file}" "${bam_file}"
 
   # Index the sorted BAM file
+  echo "Indexing sorted BAM: ${sorted_bam_file}"
   samtools index "${sorted_bam_file}"
 
   # Call HaplotypeCaller to generate GVCF
   gvcf_file="${output_folder}${sample_with_lane}.g.vcf.gz"
+  echo "Calling HaplotypeCaller, output to: ${gvcf_file}"
   gatk HaplotypeCaller \
     -R /nesi/project/ga03488/Amy/Scripts/genome_assembly/reference/sfC.ver7.fa \ ## the same reference genome you used to assemble in BWA
     -I "${sorted_bam_file}" \
@@ -54,3 +60,4 @@ for sam_file in "${input_folder}"*.sam; do
     -ERC GVCF
 
 done
+echo "GVCF generated."
