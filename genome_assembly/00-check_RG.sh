@@ -23,21 +23,36 @@ OUTPUT_DIR="/nesi/nobackup/ga03488/Amy/FAW/assemblies/test_data/alignments_sam/c
 # Make sure the output directory exists
 mkdir -p $OUTPUT_DIR
 
+# Constants for the flowcell
+FLOWCELL="EXT051"
+
 # Loop through all SAM files in the directory
 for FILE in $SAM_DIR/*.sam; do
     # Extract the base name without path and extension
     BASE_NAME=$(basename "$FILE" .sam)
 
-    # Extract sample name before the first underscore
-    SAMPLE_NAME=$(echo "$BASE_NAME" | cut -d'_' -f1)
+    # Extract sample name, sample barcode, and lane information from the file name
+    SAMPLE_NAME=$(echo "$BASE_NAME" | cut -d'_' -f1)  # Example: 01-B
+    SAMPLE_BARCODE=$(echo "$BASE_NAME" | cut -d'_' -f2)  # Example: S17
+    LANE=$(echo "$BASE_NAME" | grep -o 'L[0-9]{3}')  # Example: L001
 
-    # Add read group with the sample name derived from the file name
+    # Define the RGID as the flowcell + lane
+    RGID="${FLOWCELL}_${LANE}"  # Example: EXT051_L001
+
+    # Define the RGSM as the sample name
+    RGSM="${SAMPLE_NAME}"
+    
+    # Define the platform unit (PU) based on the flowcell, lane, and sample barcode
+    PU="${FLOWCELL}.${LANE}.${SAMPLE_BARCODE}"  # Example: EXT051.L001.S17
+
+    
+    # Add read group with the extracted information
     samtools addreplacerg \
-      -r "@RG\tID:${SAMPLE_NAME}\tSM:${SAMPLE_NAME}\tPL:ILLUMINA\tLB:lib1\tPU:unit1" \
+      -r "@RG\tID:${RGID}\tSM:${RGSM}\tPL:ILLUMINA\tLB:lib1\tPU:${PU}" \
       -o "${OUTPUT_DIR}/${BASE_NAME}_aln_rg.sam" \
       "$FILE"
     
-    # Echo to SLURM output whether the RG line was added and what the sample name has been saved as to check for any errors
-    echo "Added Read Group to ${FILE} with RGID and RGSM: ${SAMPLE_NAME}. Output file: ${OUTPUT_DIR}/${BASE_NAME}_aln_rg.sam"
+    # Echo to SLURM output whether the RG line was added and what the ID and SM values are to check for any errors
+    echo "Added Read Group to ${FILE} with RGID: ${RGID}, RGSM: ${RGSM}, RGPU: ${PU}. Output file: ${OUTPUT_DIR}/${BASE_NAME}_aln_rg.sam"
 done
 
