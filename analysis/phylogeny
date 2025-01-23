@@ -1,0 +1,11 @@
+##subset VCF mito COX gene region.
+bcftools view -r {insert genome coordinates}  input.vcf.gz -Oz -o output.vcf.gz
+
+##create consensus sequence of cox1 gene from subset vcf
+bcftools consensus -f reference.fasta -o cox_sequences.fasta -r {insert genome coordinates} input.vcf.gz
+
+##alignment of cox1 sequences
+mafft --auto cox_sequences.fasta > cox_aligned.fasta
+
+#run IQ tree
+iqtree -s cox_aligned.fasta -m GTR+G -bb 1000 -nt AUTO
