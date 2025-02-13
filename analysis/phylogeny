@@ -1,11 +1,45 @@
+#!/bin/bash -e
+#SBATCH --job-name=consensus 
+
+module load BCFtools
+module load MAFFT
+module load IQ-TREE
+
 ##subset VCF mito COX gene region.
 bcftools view -r {insert genome coordinates}  input.vcf.gz -Oz -o output.vcf.gz
 
-##create consensus sequence of cox1 gene from subset vcf
-bcftools consensus -f reference.fasta -o cox_sequences.fasta -r {insert genome coordinates} input.vcf.gz
+# Updated list of sample IDs
+samples=("01-A" "01-B" "03-B" "06-A" "07B" "08-A" "13-A" "13-B" "142m" "15-A" "15-B" "174F" "293m" "4-SmallA" "4-smallB" "6-B" "7-BigC" "ACH1" "ACH10" "ACH11" "ACH12" "ACH13" "ACH14" "ACH15" "ACH16" "ACH17" "ACH18" "ACH19" "ACH2" "ACH20" "ACH21" "ACH22" "ACH23" "ACH24" "ACH25" "ACH26" "ACH27" "ACH28" "ACH31" "ACH32" "ACH33" "ACH34" "ACH35" "ACH36" "ACH37" "ACH38" "ACH4" "ACH5" "ACH6" "ACH7" "ACH8" "ACH9" "Aus-02" "Aus-03" "Aus-04" "Aus-05" "B1" "B10" "B12" "B2" "B3" "B4" "B5" "B6" "B7" "B8" "B9" "BCW1" "BCW2" "CC38" "CC40" "CC41" "CC44" "CC66" "CC69" "F1a" "FAW-Ap13" "FAW-Ap14" "FAW-wc-01" "FAWc-18" "FAWc-6" "FAWc-9" "FCC1" "FCC2" "FCC3" "FCC4" "FCC5" "FCC6" "FCC7" "FCC8" "FG2" "FG3" "FG4" "FGJ10" "FGJ11" "FGJ12" "FGJ2" "FGJ3" "FGJ4" "FGJ5" "FGJ6" "FGJ7" "FGJ8" "FGJ9" "FL.16" "FL.17" "FL.18" "FL.19" "FL.20" "G_1.1" "G_1.2" "G_2.2" "G_2.3" "KAB" "KAT" "KNAM_0029" "KNAM_0030" "KNAM_0039" "KNAM_0040" "KNAM_0041" "KNAM_0042" "KNAM_0043" "KNAM_0044" "KNAM_0045" "KNAM_0046" "KNAM_0047" "KNAM_0048" "KUM" "L01" "L03" "M1a" "MEX13" "MEX15" "MEX16" "MEX18" "MEX21" "MEX23" "MEX25" "MEX27" "MEX28" "MEX31" "MEX33" "MEX35" "MEX38" "MEX6" "MEX8" "MEX9" "MS_C_C1" "MS_C_C2" "MS_C_C3" "MS_C_C4" "MS_C_C5" "MS_C_C6" "MS_C_C7" "MS_C_C8" "MS_C_C9" "MS_R_R2" "MS_R_R3" "MS_R_R4" "MS_R_R5" "MS_R_R6" "MS_R_R7" "MS_R_R8" "MS_R_R9" "Mal1" "Mal12" "Mal17" "Mal2" "Mal21" "Mal22" "Mal26" "Mal31" "Mal32" "Mal41" "Mal42" "Mal46" "Mal51" "Mal52" "Mal6" "Mal7" "NGO" "Nel-01" "Nel-03" "Nel-B01" "Nel-B2" "PR1" "PR12" "PR14" "PR15" "PR16" "PR18" "PR19" "PR27" "PR29" "PR30" "PR31" "PR32" "PR33" "PR35" "PR5" "S3")
+
+# Reference FASTA file
+reference="../cox_SfC_mit.fasta"
+
+# VCF file
+vcf="mito_co1.vcf.gz"
+
+# Loop through each sample ID and generate consensus sequence
+for sample in "${samples[@]}"
+do
+    echo "Processing sample: $sample"
+    bcftools consensus -f "$reference" -s "$sample" -o "${sample}.fasta" "$vcf"
+done
+
+for f in *.fasta; do
+  # Get the base name of the file (without extension)
+  basename=$(basename "$f" .fasta)
+  
+  # Replace the > header with the file name and concatenate the content
+  awk -v header=">$basename" '
+    BEGIN { OFS="\n" }
+    /^>/ { print header; next }  # Replace header
+    { print }  # Print sequence data as is
+  ' "$f" > temp.fasta && mv temp.fasta "$f"
+done
+
+cat *.fasta > all_sequences.fasta
 
 ##alignment of cox1 sequences
-mafft --auto cox_sequences.fasta > cox_aligned.fasta
+mafft --auto all_sequences.fasta > cox_aligned.fasta
 
 #run IQ tree
 iqtree -s cox_aligned.fasta -m GTR+G -bb 1000 -nt AUTO
