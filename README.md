@@ -19,3 +19,4 @@ Personal use scripts therefore slightly messy.
 
 
 * _have updated `01.5-*-walltimegap` to run bwa with the -r variable to add the @RG sample name (Oct 2025)
+* _ have also updated ther GATK pipeline to be one code that runs as an array, including mark duplicates, BQSR and haplotypecaller
