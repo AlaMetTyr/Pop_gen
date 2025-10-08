@@ -15,26 +15,24 @@
 #################################################################################################################################
 #####When walltime expired to then go back through and finish bwa alignments for the ones that werent completed previously#######
 #######################Script checks for output directory and skips over those where this exists#################################
-#################################################################################################################################
-### Executables
+################################Also now includes the @RG fline (th -R flag of bwa)##############################################
+
+### Executables####
 module load BWA/0.7.17-GCC-11.3.0 
 
-###Executables
-module load BWA/0.7.17-GCC-11.3.0 
 
-#############
-# Variables #
-#############
-workingdir="/nesi/project/ga03488/Amy/"
-scratchdir="/nesi/nobackup/ga03488/Amy/FAW/assemblies"
-scripts="$workingdir/Scripts/genome_assembly/bwa"
-logdir="$scripts/logs"
+
+
+### Variables ###
+workingdir="/nesi/project/ga03488/Amy/FAW/2025"
+scratchdir="/nesi/nobackup/ga03488/Amy/FAW/2025"
 ref_dir="/nesi/project/ga03488/Amy/Scripts/genome_assembly/reference"
-
 # Define the directory containing sample folders
-sample_dir="/nesi/nobackup/ga03488/Amy/FAW/"
+sample_dir="/nesi/nobackup/ga03488/Amy/FAW/2025/raw"
+# Flowcell ID for all samples (edit if needed)
+FLOWCELL="EXT051"
 
-# Iterate over each sample folder
+## Iterate over each sample folder##
 find "$sample_dir" -mindepth 1 -maxdepth 1 -type d | while IFS= read -r sample_folder; do
     # Extract the sample name from the folder path
     sample_name=$(basename "$sample_folder")
@@ -62,6 +60,23 @@ find "$sample_dir" -mindepth 1 -maxdepth 1 -type d | while IFS= read -r sample_f
     # Change to the output directory
     cd "$out_dir" || exit
 
-    # Perform alignment using BWA
-    bwa mem "$ref_dir/sfC.ver7.fa" "$fastq_r1" "$fastq_r2" > "${sample_name}_aln.sam"
+    # Try to extract lane & barcode info from filename if present
+    LANE=$(basename "$fastq_r1" | grep -o 'L[0-9]\{3\}' | head -n1)
+    SAMPLE_BARCODE=$(basename "$fastq_r1" | grep -o 'S[0-9]\+' | head -n1)
+
+    # Fallbacks if not found
+    LANE=${LANE:-L001}
+    SAMPLE_BARCODE=${SAMPLE_BARCODE:-S00}
+
+    RGID="${FLOWCELL}_${LANE}"
+    RGSM="${sample_name}"
+    PU="${FLOWCELL}.${LANE}.${SAMPLE_BARCODE}"
+
+    # Add read group directly during alignment
+    bwa mem -t 8 \
+        -R "@RG\tID:${RGID}\tSM:${RGSM}\tPL:ILLUMINA\tLB:lib1\tPU:${PU}" \
+        "$ref_dir/sfC.ver7.fa" "$fastq_r1" "$fastq_r2" \
+        > "${sample_name}_aln.sam"
+
+    echo " Completed ${sample_name} with RGID=${RGID}, RGSM=${RGSM}, RGPU=${PU}"
 done
