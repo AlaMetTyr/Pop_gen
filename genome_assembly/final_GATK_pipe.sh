@@ -8,57 +8,40 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --array=0-$(($(wc -l < samples.txt)-1))%20
 
+
+##this rtook a long time to run on full dataset, if runnning again need to remember. also joint genotyping (2weeks)
 ####################################################################
-## create temporary directory for Java so it does not fill up /tmp##
 TMPDIR=/nesi/nobackup/ga03488/GATK_tmp/
 mkdir -p ${TMPDIR}
 
-# remove other modules that may be loaded
-# load specific GATK version
 module purge
 module load GATK/4.3.0.0-gimkl-2022a
 
-# tell Java to use ${TMPDIR} as the temporary directory
 export _JAVA_OPTIONS=-Djava.io.tmpdir=${TMPDIR} 
-####################################################################check this is done!####
-#have to have made a text file of the sam files so can run as an array######################
-#ls /nesi/nobackup/ga03488/Amy/FAW/assemblies/test_data/alignments_sam/corrected_bam/*.sam \
-#  > samples.txt
-############################################################################################
-
-# 
 export TMPDIR
 export TEMP=${TMPDIR}
 export TMP=${TMPDIR}
 
-############################################
-EDIT THESE PATHS
-############################################
-REF=/nesi/project/ga03488/Amy/Scripts/genome_assembly/reference/sfC.ver7.fa ##double check correct
+##root files##
+REF=/nesi/project/ga03488/Amy/Scripts/genome_assembly/reference/sfC.ver7.fa 
 OUT_ROOT=/nesi/nobackup/ga03488/Amy/FAW/2025/assemblies
+KNOWN_SITES_SNP=/nesi/nobackup/ga03488/Amy/FAW/2025/global   
 
-# Global known-sites VCFs (same reference; bgzip+tabix indexed). Leave blank to skip BQSR.
-KNOWN_SITES_SNP=        # e.g. /nesi/nobackup/ga03488/Amy/FAW/2025/global/merged.Invasive.g.vcf.gz
-KNOWN_SITES_INDEL=      # 
+#txt file for array
+printf "%s\n" /nesi/nobackup/ga03488/Amy/FAW/2025/GATK_ready/merged_bam/*.bam > samples_bam.txt
 
-############################################
-# Output dirs
-############################################
+#outputs##
 BAM_DIR="${OUT_ROOT}/bam_sorted_markdup";   mkdir -p "$BAM_DIR"
 BQSR_DIR="${OUT_ROOT}/bqsr";                mkdir -p "$BQSR_DIR"
 GVCF_DIR="${OUT_ROOT}/gvcf_samples";        mkdir -p "$GVCF_DIR"
 mkdir -p logs
 
-############################################
-# Reference indexes
-############################################
+##indecing##
 [[ -s ${REF}.fai ]] || samtools faidx "$REF"
 DICT=${REF%.fa}.dict; DICT=${DICT%.fasta}.dict
 [[ -s $DICT ]] || gatk CreateSequenceDictionary -R "$REF"
 
-############################################
-# Pick sample from array
-############################################
+
 INPUT_SAM=$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" samples.txt)
 base=$(basename "$INPUT_SAM" .sam)
 SAMPLE=$(echo "$base" | cut -d'_' -f1)
@@ -68,32 +51,24 @@ TAG=${SAMPLE}${LANE:+_"$LANE"}
 echo ">>> Processing ${TAG}"
 echo "SAM: $INPUT_SAM"
 
-############################################
-# Per-task fast scratch
-############################################
+
 WORK=${SLURM_TMPDIR:-/tmp}/${TAG}
 mkdir -p "$WORK"
 trap 'rm -rf "$WORK"' EXIT
 
-############################################
-# 1) SAM -> sorted BAM (streaming)
-############################################
+
 samtools view -bS "$INPUT_SAM" \
   | samtools sort -@ ${SLURM_CPUS_PER_TASK} --tmpdir "${TMPDIR}" -o "$WORK/${base}_sorted.bam" -
 samtools index "$WORK/${base}_sorted.bam"
 
-############################################
-# 2) Mark duplicates
-############################################
+##GATK mark duplicates
 gatk --java-options "-Xmx12g" MarkDuplicatesSpark \
   -I "$WORK/${base}_sorted.bam" \
   -O "$WORK/${base}_marked.bam" \
   --conf "spark.executor.cores=${SLURM_CPUS_PER_TASK}" \
   --create-output-bam-index true
 
-############################################
-# 3) BQSR (skip cleanly if no known sites)
-############################################
+##BQSR
 KNOWN_ARGS=()
 [[ -n "${KNOWN_SITES_SNP}"   ]] && KNOWN_ARGS+=( --known-sites "${KNOWN_SITES_SNP}" )
 [[ -n "${KNOWN_SITES_INDEL}" ]] && KNOWN_ARGS+=( --known-sites "${KNOWN_SITES_INDEL}" )
@@ -116,9 +91,7 @@ else
   echo "NOTE: No known sites provided; skipping BQSR."
 fi
 
-############################################
-# 4) HaplotypeCaller (multi-threaded) → gVCF
-############################################
+##haplotypecaller
 gatk --java-options "-Xmx12g" HaplotypeCaller \
   -R "$REF" -I "$BAM_FOR_HC" \
   -O "$WORK/${TAG}.g.vcf.gz" \
@@ -126,8 +99,7 @@ gatk --java-options "-Xmx12g" HaplotypeCaller \
   --native-pair-hmm-threads ${SLURM_CPUS_PER_TASK}
 
 ############################################
-# 5) Move results out of scratch
-############################################
+
 mv -f "$WORK/"*_sorted.bam "$BAM_DIR"/
 mv -f "$WORK/"*_sorted.bam.bai "$BAM_DIR"/
 mv -f "$WORK/"*_marked.bam "$BAM_DIR"/
