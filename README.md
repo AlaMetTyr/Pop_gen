@@ -20,3 +20,16 @@ Personal use scripts therefore slightly messy.
 
 * _have updated `01.5-*-walltimegap` to run bwa with the -r variable to add the @RG sample name (Oct 2025)
 * _ have also updated ther GATK pipeline to be one code that runs as an array, including mark duplicates, BQSR and haplotypecaller
+
+
+# Updated analyses (Jan 2026)  
+### Genome assembly  
+Updated to include BQSR in GATK pipeline  
+
+### Analysis  
+`phylo.sh` SNV phylogeny  
+`relatedness-plink.sh` relatedness function for populations in plink2  
+`vcftools-relatedness.sh` relatedness function for popultions in vcftools- compared with the plink2 function and not used further  
+`tpi.sl` tpi extraction and analysis for constructing PCA for strain determination  
+`fst-vcftools.sh` updated loop for weir-fst-pop between all populations in vcftools  
+`faststructure.sh` updated loop for fastsructure  
