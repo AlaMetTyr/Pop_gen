@@ -33,3 +33,4 @@ Updated to include BQSR in GATK pipeline
 `tpi.sl` tpi extraction and analysis for constructing PCA for strain determination  
 `fst-vcftools.sh` updated loop for weir-fst-pop between all populations in vcftools  
 `faststructure.sh` updated loop for fastsructure  
+`cnvator.sh` script to use CNVnator for copy number variant discovery. Used for detecting duplication in the AChE locus
